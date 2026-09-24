@@ -22,6 +22,7 @@ if (process.env.SESSION_SECRET.length < 32) {
 const db = require('./db');
 const auth = require('./auth');
 const admin = require('./admin');
+const keyterms = require('./keyterms');
 const { pool, ID_RE } = db;
 
 const PORT = process.env.PORT || 3000;
@@ -81,9 +82,23 @@ const sessionJson = (s) => ({
   listenedSeconds: s.listened_seconds,
   listenLimitSeconds: listenLimitSeconds(s),
   endedAt: s.ended_at ? new Date(s.ended_at).toISOString() : null,
+  keyterms: parseKeyterms(s.keyterms),
 });
 
+function parseKeyterms(stored) {
+  try { return stored ? JSON.parse(stored) : []; } catch (e) { return []; }
+}
+
 const ENDED_MSG = 'This session has ended. Download the transcript, or start a new session.';
+
+/* Technical terms from the JD, sent to Deepgram so they are transcribed correctly.
+   Worked out once per session and saved; older sessions get them on first listen. */
+async function sessionKeyterms(session) {
+  if (session.keyterms) return parseKeyterms(session.keyterms);
+  const terms = await keyterms.extract(session.jd, client, MODEL_SHORT);
+  await pool.query('UPDATE sessions SET keyterms = $1 WHERE id = $2', [JSON.stringify(terms), session.id]);
+  return terms;
+}
 
 app.get('/api/config', (req, res) => {
   res.json({ hasKey: Boolean(client), hasDeepgram: Boolean(DG_KEY), modelShort: MODEL_SHORT, modelLong: MODEL_LONG });
@@ -117,6 +132,7 @@ app.post('/api/sessions', async (req, res, next) => {
       [crypto.randomUUID(), req.user.id, name, resume, jd]
     );
     res.json(sessionJson(rows[0]));
+    sessionKeyterms(rows[0]).catch((e) => console.error('Could not save keyterms:', e.message));
   } catch (e) { next(e); }
 });
 
@@ -488,7 +504,12 @@ async function onUpgrade(req, socket, head) {
     if (!user || user.mustChangePassword) return rejectUpgrade(socket, 401, 'Unauthorized');
     const session = await readSession(url.searchParams.get('session'), user.id);
     if (!session) return rejectUpgrade(socket, 404, 'Not Found');
-    wss.handleUpgrade(req, socket, head, (ws) => handleStt(ws, session, user));
+    // Don't hold up listening for more than 5 s; the simple extractor covers the gap.
+    const terms = session.ended_at ? [] : await Promise.race([
+      sessionKeyterms(session).catch(() => keyterms.heuristic(session.jd)),
+      new Promise((resolve) => setTimeout(() => resolve(keyterms.heuristic(session.jd)), 5000)),
+    ]);
+    wss.handleUpgrade(req, socket, head, (ws) => handleStt(ws, session, user, terms));
   } catch (e) {
     rejectUpgrade(socket, 500, 'Internal Server Error');
   }
@@ -496,7 +517,7 @@ async function onUpgrade(req, socket, head) {
 
 /* Listening stops at whichever runs out first: this session's limit or the account's minutes.
    Admin accounts have unlimited account minutes (the per-session limit still applies). */
-function handleStt(browser, session, user) {
+function handleStt(browser, session, user, terms) {
   const tell = (obj) => {
     if (browser.readyState === WebSocket.OPEN) browser.send(JSON.stringify(obj));
   };
@@ -574,7 +595,7 @@ function handleStt(browser, session, user) {
     } catch (e) {}
   }, 5000);
 
-  const dg = new WebSocket(DG_URL, { headers: { Authorization: `Token ${DG_KEY}` } });
+  const dg = new WebSocket(keyterms.withKeyterms(DG_URL, terms), { headers: { Authorization: `Token ${DG_KEY}` } });
   const queue = [];
   let keepAlive = null;
 
