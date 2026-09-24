@@ -74,6 +74,9 @@ Controls:
 - **Auto-answer** off means it only shows what it heard, with an **Answer this** button.
 - You can still type a question at the bottom at any time.
 - Only the tab's audio (the interviewer) is captured. Your own microphone is not.
+- Recognition is tuned per session: when a session is created, up to 50 technical terms are taken
+  from the job description (e.g. S/4HANA, CPI, iFlow, OData) and sent to Deepgram as keyterms, so
+  they are transcribed correctly. Hover over **Start listening** to see them.
 
 Limits (only live listening counts; typed questions are unlimited):
 - **Account minutes:** each account has a total allowance of listening minutes (default 100,

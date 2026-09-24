@@ -276,6 +276,8 @@ function paintFeed() {
   if (!media) listenBtn.disabled = !ready;
   // An ended session is read-only: history and download stay, listening and asking go.
   listenBtn.hidden = ended;
+  const terms = (ready && active.keyterms) || [];
+  listenBtn.title = terms.length ? 'Recognition tuned for: ' + terms.join(', ') : '';
   $('#autoWrap').hidden = ended;
   $('.seg').hidden = ended;
   $('#endBtn').hidden = !ready || ended;
