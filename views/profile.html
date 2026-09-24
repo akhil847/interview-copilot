@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile · Interview Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --ink: #16222e; --muted: #5d6b7a; --line: #d5dbe2;
+  --accent: #0e6e7e; --accent-ink: #ffffff; --accent-soft: #dcedf0; --danger: #a5401a; --ok: #1c7a45;
+  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 20px; flex: 1; }
+header a { color: var(--muted); }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 20px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+h2 { margin: 0 0 12px; font-size: 17px; }
+.who { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 22px; font-weight: 700; flex: none; }
+.who .name { font-size: 22px; font-weight: 700; margin: 0; }
+.who .facts { color: var(--muted); font-size: 14px; }
+.badge { display: inline-block; font-size: 12px; border-radius: 6px; padding: 1px 7px; margin-left: 8px; border: 1px solid currentColor; color: var(--accent); vertical-align: middle; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.stat .label { font-size: 13px; color: var(--muted); }
+.stat .value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .sub { font-size: 13px; color: var(--muted); }
+.bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; }
+.bar[data-level="warn"] span { background: #b7791f; }
+.bar[data-level="full"] span { background: var(--danger); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.name { white-space: normal; }
+.state { font-size: 13px; }
+.state.ended { color: var(--muted); }
+.state.open { color: var(--ok); font-weight: 700; }
+.muted { color: var(--muted); }
+.btn { display: inline-block; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700; text-decoration: none; }
+.btn.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
+.btn.small { padding: 3px 10px; font-size: 14px; }
+.btn.danger { background: var(--danger); }
+form.pw { display: grid; gap: 12px; max-width: 380px; }
+form.pw label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
+form.pw input { padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 400; }
+.msg { margin: 0; font-size: 14px; min-height: 1.5em; }
+.msg.err { color: var(--danger); }
+.msg.ok { color: var(--ok); }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Profile</h1>
+  <a href="/">Back to the app</a>
+</header>
+<main>
+  <section>
+    <div class="who">
+      <div class="avatar" id="avatar" aria-hidden="true"></div>
+      <div>
+        <p class="name"><span id="name"></span><span class="badge" id="adminBadge" hidden>Admin</span></p>
+        <div class="facts" id="facts"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Usage</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Minutes</div>
+        <div class="value" id="minutes"></div>
+        <div class="bar" id="bar" role="progressbar" aria-label="Listening minutes used" aria-valuemin="0"><span id="fill"></span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Sessions</div>
+        <div class="value" id="sessionCount"></div>
+        <div class="sub" id="sessionSplit"></div>
+      </div>
+      <div class="stat">
+        <div class="label">Questions asked</div>
+        <div class="value" id="questions"></div>
+        <div class="sub">All time</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your sessions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Session</th><th>Created</th><th class="num">Minutes</th><th class="num">Questions</th><th>Status</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="adminBox" hidden>
+    <h2>Admin</h2>
+    <a class="btn" href="/admin">Admin console</a>
+  </section>
+
+  <section>
+    <h2>Change password</h2>
+    <form class="pw" id="pwForm" novalidate>
+      <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+      <label>New password <input name="next" type="password" autocomplete="new-password" minlength="10" required></label>
+      <label>Repeat new password <input name="again" type="password" autocomplete="new-password" required></label>
+      <p class="msg" id="pwMsg" role="status"></p>
+      <div><button class="btn" type="submit" id="pwBtn">Save password</button></div>
+    </form>
+  </section>
+
+  <div class="actions">
+    <button class="btn danger" type="button" id="logoutBtn">Log out</button>
+  </div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const when = (iso) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const day = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.href = '/login'; throw new Error('Log in again.'); }
+  if (r.status === 403 && j.mustChangePassword) { location.href = '/change-password'; throw new Error(''); }
+  if (!r.ok) throw new Error(j.error || 'Request failed.');
+  return j;
+}
+
+function paint(p) {
+  $('#avatar').textContent = p.username.charAt(0).toUpperCase();
+  $('#name').textContent = p.username;
+  $('#adminBadge').hidden = !p.isAdmin;
+  $('#adminBox').hidden = !p.isAdmin;
+  $('#facts').textContent = `Member since ${day(p.createdAt)} · Last login ${p.lastLoginAt ? when(p.lastLoginAt) : 'never'}`;
+
+  const used = Math.floor(p.usedSeconds / 60);
+  if (p.limitSeconds == null) {
+    $('#minutes').textContent = `${used} min used`;
+    $('#bar').hidden = true;
+    const sub = document.createElement('div');
+    sub.className = 'sub';
+    sub.textContent = 'Unlimited';
+    $('#bar').after(sub);
+  } else {
+    const limit = Math.round(p.limitSeconds / 60);
+    const pct = p.limitSeconds > 0 ? Math.min(100, (p.usedSeconds / p.limitSeconds) * 100) : 100;
+    $('#minutes').textContent = `${used} / ${limit} min used`;
+    $('#fill').style.width = pct + '%';
+    $('#bar').dataset.level = pct >= 100 ? 'full' : pct >= 90 ? 'warn' : '';
+    $('#bar').setAttribute('aria-valuemax', String(limit));
+    $('#bar').setAttribute('aria-valuenow', String(used));
+  }
+
+  const ended = p.sessions.filter((s) => s.ended).length;
+  $('#sessionCount').textContent = p.sessions.length;
+  $('#sessionSplit').textContent = `${p.sessions.length - ended} open · ${ended} ended`;
+  $('#questions').textContent = p.questionsTotal;
+
+  $('#rows').innerHTML = p.sessions.length
+    ? p.sessions.map((s) => `<tr>
+        <td class="name">${esc(s.name)}</td>
+        <td>${esc(when(s.createdAt))}</td>
+        <td class="num">${s.listenedMinutes}</td>
+        <td class="num">${s.questions}</td>
+        <td><span class="state ${s.ended ? 'ended' : 'open'}">${s.ended ? 'Ended' : 'Open'}</span></td>
+        <td><a class="btn ghost small" href="/?session=${encodeURIComponent(s.id)}">Open</a></td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="muted">No sessions yet.</td></tr>';
+}
+
+api('/api/profile').then(paint).catch((e) => {
+  if (e.message) $('#rows').innerHTML = `<tr><td colspan="6" class="muted">${esc(e.message)}</td></tr>`;
+});
+
+$('#pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target, msg = $('#pwMsg');
+  msg.className = 'msg err';
+  msg.textContent = '';
+  if (f.next.value !== f.again.value) { msg.textContent = 'The new passwords do not match.'; return; }
+  $('#pwBtn').disabled = true;
+  try {
+    await api('/api/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current: f.current.value, next: f.next.value }),
+    });
+    f.reset();
+    msg.className = 'msg ok';
+    msg.textContent = 'Password changed. Other devices were signed out.';
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+  $('#pwBtn').disabled = false;
+});
+
+$('#logoutBtn').onclick = async () => {
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  localStorage.removeItem('activeId');
+  location.href = '/login';
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin console · Interview Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --ink: #16222e; --muted: #5d6b7a; --line: #d5dbe2;
+  --accent: #0e6e7e; --accent-ink: #ffffff; --accent-soft: #dcedf0; --danger: #a5401a; --ok: #1c7a45;
+  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 20px; flex: 1; }
+header a { color: var(--muted); }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 24px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+h2 { margin: 0 0 4px; font-size: 18px; }
+p.note { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; }
+.btn.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
+.btn.ghost:hover { border-color: var(--accent); }
+.btn.danger { background: var(--panel); color: var(--danger); border: 1px solid var(--danger); font-weight: 400; }
+.btn.small { padding: 4px 10px; font-size: 14px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+form.create { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+form.create label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
+input[type="text"], input[type="number"] { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 400; }
+input.limit { width: 84px; padding: 4px 8px; }
+.pwrow { display: flex; gap: 6px; }
+.msg { margin: 12px 0 0; font-size: 14px; min-height: 1.5em; }
+.msg.err { color: var(--danger); }
+.msg.ok { color: var(--ok); }
+.msg code { background: var(--accent-soft); color: var(--ink); padding: 2px 6px; border-radius: 4px; font-size: 15px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 980px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 13px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; font-size: 12px; border-radius: 6px; padding: 1px 7px; margin-left: 6px; border: 1px solid currentColor; }
+.badge.admin { color: var(--accent); }
+.badge.off, .badge.locked { color: var(--danger); }
+.badge.temp { color: var(--muted); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+tr.sub > td { background: var(--bg); padding: 12px 16px; }
+tr.sub table { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+tr.sub th, tr.sub td { padding: 7px 10px; }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Admin console</h1>
+  <button class="btn ghost" id="csvBtn" type="button">Download CSV</button>
+  <a href="/profile">Profile</a>
+  <a href="/">Back to the app</a>
+</header>
+<main>
+  <section>
+    <h2>Create user</h2>
+    <p class="note">There is no sign-up. Give the person their username and temporary password; they must change it when they first log in.</p>
+    <form class="create" id="createForm" novalidate>
+      <label>Username <input type="text" name="username" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. priya" required></label>
+      <label>Temporary password
+        <span class="pwrow"><input type="text" name="password" autocomplete="off" spellcheck="false" required><button class="btn ghost" type="button" id="genBtn">Generate</button></span>
+      </label>
+      <label>Account minutes <input type="number" name="limit" min="0" max="100000" step="1" value="100" class="limit"></label>
+      <button class="btn" type="submit">Create user</button>
+    </form>
+    <p class="msg" id="createMsg" role="status"></p>
+  </section>
+
+  <section>
+    <h2>Users and usage</h2>
+    <p class="note">Usage counts only. Resumes, job descriptions, questions, and answers are never shown here. Times are in this computer's time zone.</p>
+    <p class="msg" id="tableMsg" role="status"></p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th><th>Last login</th><th class="num">Sessions</th><th class="num">Questions today</th>
+            <th class="num">Questions total</th><th>Account minutes (used / limit)</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="7" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never');
+let data = { me: null, users: [] };
+const open = new Set();
+
+function genPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(14));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.href = '/login'; throw new Error('Log in again.'); }
+  if (!r.ok) throw new Error(j.error || 'Request failed.');
+  return j;
+}
+const post = (url, body) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+function say(el, text, kind = 'ok', html = false) {
+  el.className = 'msg ' + kind;
+  if (html) el.innerHTML = text; else el.textContent = text;
+}
+
+function paint() {
+  const tb = $('#rows');
+  if (!data.users.length) { tb.innerHTML = '<tr><td colspan="7" class="muted">No users.</td></tr>'; return; }
+  tb.innerHTML = data.users.map((u) => {
+    const self = u.id === data.me;
+    const badges =
+      (u.isAdmin ? '<span class="badge admin">admin</span>' : '') +
+      (!u.isActive ? '<span class="badge off">disabled</span>' : '') +
+      (u.locked ? '<span class="badge locked">locked</span>' : '') +
+      (u.mustChangePassword ? '<span class="badge temp">temp password</span>' : '');
+    const actions = self
+      ? '<span class="muted">This is you</span>'
+      : `<button class="btn ghost small" data-act="reset" data-id="${u.id}">Reset password</button>
+         <button class="btn ${u.isActive ? 'danger' : 'ghost'} small" data-act="active" data-id="${u.id}">${u.isActive ? 'Disable' : 'Enable'}</button>`;
+    const main = `<tr>
+      <td><strong>${esc(u.username)}</strong>${badges}</td>
+      <td>${esc(when(u.lastLoginAt))}</td>
+      <td class="num"><button class="btn ghost small" data-act="toggle" data-id="${u.id}" aria-expanded="${open.has(u.id)}" ${u.sessionCount ? '' : 'disabled'}>${u.sessionCount} ${open.has(u.id) ? '▴' : '▾'}</button></td>
+      <td class="num">${u.questionsToday}</td>
+      <td class="num">${u.questionsTotal}</td>
+      <td style="white-space:nowrap">${u.minutesUsed} /
+        ${u.minutesLimit == null
+          ? '<span class="muted">Unlimited</span>'
+          : `<input class="limit" type="number" min="0" max="100000" step="1" value="${u.minutesLimit}" aria-label="Account minutes for ${esc(u.username)}" data-limit="${u.id}">
+             <button class="btn ghost small" data-act="limit" data-id="${u.id}">Save</button>`}</td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
+    if (!open.has(u.id)) return main;
+    const sessions = u.sessions.map((s) => `<tr>
+        <td>${esc(s.name)}${s.ended ? ' <span class="badge off">ended</span>' : ''}</td>
+        <td>${esc(when(s.createdAt))}</td>
+        <td class="num">${s.listenedMinutes} of ${s.limitMinutes}</td>
+        <td><button class="btn ghost small" data-act="minutes" data-sid="${s.id}" data-name="${esc(s.name)}">Add minutes</button></td>
+      </tr>`).join('');
+    return main + `<tr class="sub"><td colspan="7"><table>
+      <thead><tr><th>Session</th><th>Created</th><th class="num">Listening min (used of limit)</th><th></th></tr></thead>
+      <tbody>${sessions}</tbody></table></td></tr>`;
+  }).join('');
+}
+
+async function load() {
+  try {
+    data = await api('/api/admin/users');
+    paint();
+  } catch (e) {
+    say($('#tableMsg'), e.message, 'err');
+  }
+}
+
+$('#genBtn').onclick = () => { $('#createForm').password.value = genPassword(); };
+
+$('#createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    const r = await post('/api/admin/users', { username: f.username.value, password: f.password.value, minutesLimit: f.limit.value });
+    say($('#createMsg'), `Created. Give them username <code>${esc(r.username)}</code> and temporary password <code>${esc(f.password.value)}</code>. They must change it on first login.`, 'ok', true);
+    f.username.value = ''; f.password.value = ''; f.limit.value = 100;
+    await load();
+  } catch (err) {
+    say($('#createMsg'), err.message, 'err');
+  }
+});
+
+$('#rows').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = Number(b.dataset.id);
+  const u = data.users.find((x) => x.id === id);
+  const msg = $('#tableMsg');
+  try {
+    if (b.dataset.act === 'toggle') {
+      open.has(id) ? open.delete(id) : open.add(id);
+      return paint();
+    }
+    if (b.dataset.act === 'limit') {
+      const v = document.querySelector(`input[data-limit="${id}"]`).value;
+      await post(`/api/admin/users/${id}/minutes-limit`, { minutesLimit: v === '' ? '' : Number(v) });
+      say(msg, `${u.username} now has ${v} account minutes in total.`);
+    } else if (b.dataset.act === 'active') {
+      if (u.isActive && !confirm(`Disable ${u.username}? They are logged out now and cannot log in until enabled.`)) return;
+      await post(`/api/admin/users/${id}/active`, { active: !u.isActive });
+      say(msg, `${u.username} is now ${u.isActive ? 'disabled' : 'enabled'}.`);
+    } else if (b.dataset.act === 'reset') {
+      const pw = prompt(`New temporary password for ${u.username} (at least 10 characters). They must change it when they log in.`, genPassword());
+      if (pw == null) return;
+      await post(`/api/admin/users/${id}/password`, { password: pw });
+      say(msg, `Password reset. Give ${esc(u.username)} the temporary password <code>${esc(pw)}</code>. They were logged out everywhere.`, 'ok', true);
+    } else if (b.dataset.act === 'minutes') {
+      const v = prompt(`Add how many listening minutes to "${b.dataset.name}"?`, '15');
+      if (v == null) return;
+      const r = await post(`/api/admin/sessions/${b.dataset.sid}/minutes`, { minutes: Number(v) });
+      say(msg, `"${b.dataset.name}" can now listen for ${r.limitMinutes} minutes in total.`);
+    }
+    await load();
+  } catch (err) {
+    say(msg, err.message, 'err');
+  }
+});
+
+$('#csvBtn').onclick = async () => {
+  try {
+    const r = await fetch('/api/admin/usage.csv');
+    if (r.status === 401) { location.href = '/login'; return; }
+    if (!r.ok) throw new Error('Could not download the CSV.');
+    const name = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'usage.csv';
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    say($('#tableMsg'), e.message, 'err');
+  }
+};
+
+load();
+</script>
+</body>
+</html>

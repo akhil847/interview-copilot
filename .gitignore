@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# secrets: never commit
+.env
+.env.*
+!.env.example
+
+# local data and tool settings
+data/
+.claude/
+
+# logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

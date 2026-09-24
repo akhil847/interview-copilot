@@ -1,0 +1,29 @@
+# Render Blueprint: Dashboard > New > Blueprint, then pick this repo.
+# Values marked "sync: false" are secrets: Render asks for them on first deploy.
+services:
+  - type: web
+    name: interview-copilot
+    runtime: node
+    plan: free # "starter" ($7/mo) stays awake; free sleeps after 15 min idle
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET # use the same value as your local .env (stored passwords depend on it)
+        sync: false
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
